@@ -124,7 +124,7 @@ async def connect_and_setup(device, player, handler_func, *handler_args):
     await client.connect()
     client._device = device
     await set_leds(client, player.number)
-    await enable_imu(client)
+    # await enable_imu(client)
     await handler_func(client, player, *handler_args)
     player.clients.append(client)
     print(f"✅ Connected to {device.address}")
@@ -204,6 +204,19 @@ async def setup_player(number):
             left_client = await connect_and_setup(left, player, handle_dual_joycon, "LEFT")
             asyncio.create_task(maintain_connection_loop(right_client, right, player, handle_dual_joycon, "RIGHT"))
             asyncio.create_task(maintain_connection_loop(left_client, left, player, handle_dual_joycon, "LEFT"))
+
+            def vibration_callback(client, target, large_motor, small_motor, led_number, user_data):
+                if large_motor or small_motor:
+                    print("Vibration : {}, {}".format(large_motor, small_motor))
+                    loop = asyncio.new_event_loop()
+
+                    async def task():
+                        await asyncio.gather(play_vibration_preset(left_client, 1), play_vibration_preset(right_client, 1))
+
+                    loop.run_until_complete(task())
+
+            player.gamepad.register_notification(callback_function=vibration_callback)
+            
             return player
 
         elif choice == "3":
